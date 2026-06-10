@@ -1,0 +1,279 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export interface ScrapItem {
+  id: string;
+  srNo: number;
+  materialDescription: string;
+  materialNumber: string;
+  uom: string;
+  quantity: number;
+  typeOfWaste: string;
+  scrapLocation: string;
+}
+
+export interface ScrapRequest {
+  id: string;
+  requestNumber: string;
+  date: string;
+  department: string;
+  items: ScrapItem[];
+  reasonForDisposal: string;
+  requirementCheck: 'yes' | 'no' | null;
+  categoryVerification: 'yes' | 'no' | null;
+  remarks: string;
+  status: 'draft' | 'pending' | 'reviewed' | 'approved' | 'rejected';
+  initiatedBy: {
+    name: string;
+    employeeId: string;
+    designation: string;
+    date: string;
+  };
+  reviewedBy: {
+    name: string;
+    designation: string;
+    status: 'pending' | 'approved' | 'rejected';
+  };
+  approvedBy: {
+    name: string;
+    designation: string;
+    status: 'pending' | 'approved' | 'rejected';
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+const DATA_DIR = path.join(__dirname, '../data');
+const DATA_FILE = path.join(DATA_DIR, 'requests.json');
+
+// Default initial requests for seeding
+const SEED_REQUESTS: ScrapRequest[] = [
+  {
+    id: 'req-001',
+    requestNumber: 'SDRN-2026-0042',
+    date: '2026-02-02',
+    department: 'OCC',
+    items: [
+      {
+        id: 'item-001',
+        srNo: 1,
+        materialDescription: 'Conveyor Belt (Heavy Duty)',
+        materialNumber: 'MAT-2026-8821',
+        uom: 'Nos',
+        quantity: 12,
+        typeOfWaste: 'Damaged',
+        scrapLocation: 'Raidurg Depot - Warehouse A',
+      },
+      {
+        id: 'item-002',
+        srNo: 2,
+        materialDescription: 'Hydraulic Oil (Drum)',
+        materialNumber: 'MAT-2026-4430',
+        uom: 'Liter',
+        quantity: 5,
+        typeOfWaste: 'Expired',
+        scrapLocation: 'Raidurg Depot - Maintenance Bay',
+      },
+      {
+        id: 'item-003',
+        srNo: 3,
+        materialDescription: 'Brake Pads (Set of 4)',
+        materialNumber: 'MAT-2026-1192',
+        uom: 'Set',
+        quantity: 8,
+        typeOfWaste: 'Obsolete',
+        scrapLocation: 'Miyapur Depot - Yard Storage',
+      },
+    ],
+    reasonForDisposal: 'Belt got damaged during operation and replaced.',
+    requirementCheck: 'no',
+    categoryVerification: 'no',
+    remarks: '',
+    status: 'pending',
+    initiatedBy: {
+      name: 'Rajesh Kumar',
+      employeeId: 'HMRL-EMP-4502',
+      designation: 'Senior Engineer (Rolling Stock)',
+      date: '2026-02-02',
+    },
+    reviewedBy: {
+      name: 'Priya Sharma',
+      designation: 'Depot Manager',
+      status: 'pending',
+    },
+    approvedBy: {
+      name: 'Arun Reddy',
+      designation: 'Head of Operations',
+      status: 'pending',
+    },
+    createdAt: '2026-02-02T10:30:00Z',
+    updatedAt: '2026-02-02T10:30:00Z',
+  },
+  {
+    id: 'req-002',
+    requestNumber: 'SDRN-2026-0038',
+    date: '2026-01-28',
+    department: 'Rolling Stock',
+    items: [
+      {
+        id: 'item-004',
+        srNo: 1,
+        materialDescription: 'Overhead Wire Tensioner',
+        materialNumber: 'MAT-2026-3201',
+        uom: 'Unit',
+        quantity: 3,
+        typeOfWaste: 'Broken',
+        scrapLocation: 'Nagole Depot - Store Room',
+      },
+    ],
+    reasonForDisposal: 'Equipment broken beyond repair due to wear and tear.',
+    requirementCheck: 'yes',
+    categoryVerification: 'yes',
+    remarks: 'Please expedite the disposal process.',
+    status: 'approved',
+    initiatedBy: {
+      name: 'Suresh Naidu',
+      employeeId: 'HMRL-EMP-3891',
+      designation: 'Junior Engineer (Track)',
+      date: '2026-01-28',
+    },
+    reviewedBy: {
+      name: 'Priya Sharma',
+      designation: 'Depot Manager',
+      status: 'approved',
+    },
+    approvedBy: {
+      name: 'Arun Reddy',
+      designation: 'Head of Operations',
+      status: 'approved',
+    },
+    createdAt: '2026-01-28T14:15:00Z',
+    updatedAt: '2026-01-30T09:00:00Z',
+  },
+  {
+    id: 'req-003',
+    requestNumber: 'SDRN-2026-0035',
+    date: '2026-01-25',
+    department: 'Signalling',
+    items: [
+      {
+        id: 'item-005',
+        srNo: 1,
+        materialDescription: 'Signal Relay Module (Type C)',
+        materialNumber: 'MAT-2026-1156',
+        uom: 'Nos',
+        quantity: 20,
+        typeOfWaste: 'Replaced',
+        scrapLocation: 'Ameerpet Station - Signal Room',
+      },
+      {
+        id: 'item-006',
+        srNo: 2,
+        materialDescription: 'Cable Gland (IP68)',
+        materialNumber: 'MAT-2026-7743',
+        uom: 'Box',
+        quantity: 2,
+        typeOfWaste: 'Expired',
+        scrapLocation: 'Ameerpet Station - Signal Room',
+      },
+    ],
+    reasonForDisposal: 'Old relays replaced with new digital units during upgrade.',
+    requirementCheck: 'no',
+    categoryVerification: 'yes',
+    remarks: '',
+    status: 'reviewed',
+    initiatedBy: {
+      name: 'Vikram Patel',
+      employeeId: 'HMRL-EMP-5120',
+      designation: 'Signal Engineer',
+      date: '2026-01-25',
+    },
+    reviewedBy: {
+      name: 'Priya Sharma',
+      designation: 'Depot Manager',
+      status: 'approved',
+    },
+    approvedBy: {
+      name: 'Arun Reddy',
+      designation: 'Head of Operations',
+      status: 'pending',
+    },
+    createdAt: '2026-01-25T11:00:00Z',
+    updatedAt: '2026-01-29T16:45:00Z',
+  },
+];
+
+class Database {
+  constructor() {
+    this.init();
+  }
+
+  private init() {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(DATA_FILE)) {
+      this.write(SEED_REQUESTS);
+    }
+  }
+
+  private read(): ScrapRequest[] {
+    try {
+      const data = fs.readFileSync(DATA_FILE, 'utf8');
+      return JSON.parse(data) as ScrapRequest[];
+    } catch (error) {
+      console.error('Error reading database file:', error);
+      return [];
+    }
+  }
+
+  private write(requests: ScrapRequest[]) {
+    try {
+      fs.writeFileSync(DATA_FILE, JSON.stringify(requests, null, 2), 'utf8');
+    } catch (error) {
+      console.error('Error writing to database file:', error);
+    }
+  }
+
+  public getAll(): ScrapRequest[] {
+    return this.read();
+  }
+
+  public getById(id: string): ScrapRequest | undefined {
+    return this.read().find((r) => r.id === id);
+  }
+
+  public insert(request: ScrapRequest): ScrapRequest {
+    const requests = this.read();
+    // Ensure no duplicates
+    const index = requests.findIndex((r) => r.id === request.id);
+    if (index !== -1) {
+      requests[index] = request;
+    } else {
+      requests.unshift(request); // Newest requests first
+    }
+    this.write(requests);
+    return request;
+  }
+
+  public update(id: string, requestData: Partial<ScrapRequest>): ScrapRequest | undefined {
+    const requests = this.read();
+    const index = requests.findIndex((r) => r.id === id);
+    if (index === -1) return undefined;
+
+    const updated = {
+      ...requests[index],
+      ...requestData,
+      updatedAt: new Date().toISOString(),
+    };
+    requests[index] = updated;
+    this.write(requests);
+    return updated;
+  }
+}
+
+export const db = new Database();
