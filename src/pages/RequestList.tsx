@@ -64,7 +64,35 @@ export default function RequestList() {
   ].filter(Boolean).length;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* Top Header Section */}
+      <div className="flex items-center justify-between">
+        <div>
+          {/* Breadcrumbs */}
+          <nav className="flex items-center gap-1.5 text-xs text-gray-400 font-semibold mb-1.5">
+            <button
+              onClick={() => setCurrentView('dashboard')}
+              className="hover:text-gray-600 transition-colors"
+            >
+              Home
+            </button>
+            <span>/</span>
+            <span className="text-gray-600">Scrap Disposal</span>
+          </nav>
+          <h1 className="text-2xl font-bold text-gray-900">Scrap Disposal Requests</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Manage and track all scrap material disposal request notes.
+          </p>
+        </div>
+        <button
+          onClick={handleCreateNew}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0f3d8c] hover:bg-[#0a2e6b] text-white rounded-lg text-sm font-semibold transition cursor-pointer shadow-sm"
+        >
+          <Plus className="w-4 h-4" />
+          New Request
+        </button>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {(
@@ -146,15 +174,6 @@ export default function RequestList() {
                 {activeFilterCount}
               </span>
             )}
-          </button>
-
-          {/* Create New */}
-          <button
-            onClick={handleCreateNew}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-keolis-blue text-white rounded-lg text-sm font-medium hover:bg-keolis-blue-dark transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            New Request
           </button>
         </div>
 

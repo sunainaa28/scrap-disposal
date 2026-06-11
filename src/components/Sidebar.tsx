@@ -1,77 +1,81 @@
 import { useStore } from '@/store/useStore';
-import { useMsal } from '@azure/msal-react';
 import {
-  ClipboardList,
+  LayoutDashboard,
+  Trash2,
   PlusCircle,
   FileText,
   Settings,
-  Shield,
-  LogOut,
 } from 'lucide-react';
 
-const menuItems = [
-  { id: 'list', label: 'All Requests', icon: ClipboardList },
-  { id: 'create', label: 'New Request', icon: PlusCircle },
-];
-
 export default function Sidebar() {
-  const { currentView, setCurrentView, resetForm, user, logout } = useStore();
-  const { instance } = useMsal();
+  const { currentView, setCurrentView, resetForm } = useStore();
 
-  const handleLogout = () => {
-    const accounts = instance.getAllAccounts();
-    if (accounts.length > 0) {
-      instance.logoutPopup().catch(console.error);
-    }
-    logout();
-  };
-
-  const handleNavigate = (view: 'list' | 'create') => {
+  const handleNavigate = (view: 'dashboard' | 'list' | 'create') => {
     if (view === 'create') {
       resetForm();
     }
     setCurrentView(view);
   };
 
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  ];
+
+  const materialItems = [
+    { id: 'list', label: 'Scrap Disposal', icon: Trash2 },
+    { id: 'create', label: 'New Request', icon: PlusCircle },
+    { id: 'reports', label: 'Reports', icon: FileText },
+  ];
+
+  const systemItems = [
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+
+  const isItemActive = (id: string) => {
+    if (id === 'dashboard') return currentView === 'dashboard';
+    if (id === 'list') return currentView === 'list' || currentView === 'preview';
+    if (id === 'create') return currentView === 'create';
+    return false;
+  };
+
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
+    <aside className="w-64 bg-[#0a1424] border-r border-[#1a2b44] flex flex-col h-screen sticky top-0 text-slate-300 select-none">
       {/* Logo Area */}
-      <div className="px-6 py-5 border-b border-gray-200">
+      <div className="px-6 py-5 border-b border-[#1a2b44]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-keolis-blue rounded-lg flex items-center justify-center">
-            <Shield className="w-5 h-5 text-white" />
+          {/* Logo Circle with 'K' */}
+          <div className="w-10 h-10 bg-[#17253a] border border-[#2c3d59] rounded-lg flex items-center justify-center shadow-inner">
+            <span className="text-white font-extrabold text-lg tracking-wider">K</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-gray-900 leading-tight">
-              HMRL OCC
+            <span className="text-sm font-bold text-white leading-tight tracking-wide">
+              Keolis Hyderabad
             </span>
-            <span className="text-[10px] text-gray-500 uppercase tracking-wider leading-tight">
-              Keolis
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">
+              Scrap Disposal Portal
             </span>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
-          Scrap Disposal
-        </div>
+      <nav className="flex-1 px-4 py-6 space-y-6 overflow-y-auto">
+        {/* Main Menu */}
         <ul className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentView === item.id;
+            const isActive = isItemActive(item.id);
             return (
               <li key={item.id}>
                 <button
-                  onClick={() => handleNavigate(item.id as 'list' | 'create')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  onClick={() => handleNavigate(item.id as any)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
                     isActive
-                      ? 'bg-keolis-blue text-white shadow-sm'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-[#183a6b] text-white shadow-md'
+                      : 'text-slate-400 hover:bg-[#122035] hover:text-white'
                   }`}
                 >
-                  <Icon className="w-4.5 h-4.5" />
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                   {item.label}
                 </button>
               </li>
@@ -79,51 +83,71 @@ export default function Sidebar() {
           })}
         </ul>
 
-        <div className="mt-8 text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
-          System
+        {/* Materials Section */}
+        <div>
+          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-2">
+            Materials
+          </div>
+          <ul className="space-y-1">
+            {materialItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = isItemActive(item.id);
+              return (
+                <li key={item.id}>
+                  <button
+                    onClick={() => {
+                      if (item.id === 'list' || item.id === 'create') {
+                        handleNavigate(item.id as any);
+                      }
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+                      isActive
+                        ? 'bg-[#183a6b] text-white shadow-md'
+                        : item.id === 'reports'
+                        ? 'text-slate-400 hover:text-white/80 cursor-not-allowed opacity-60'
+                        : 'text-slate-400 hover:bg-[#122035] hover:text-white'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                    {item.label}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
-        <ul className="space-y-1">
-          <li>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
-              <FileText className="w-4.5 h-4.5" />
-              Reports
-            </button>
-          </li>
-          <li>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
-              <Settings className="w-4.5 h-4.5" />
-              Settings
-            </button>
-          </li>
-        </ul>
+
+        {/* System Section */}
+        <div>
+          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-2">
+            System
+          </div>
+          <ul className="space-y-1">
+            {systemItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = isItemActive(item.id);
+              return (
+                <li key={item.id}>
+                  <button
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-not-allowed opacity-60 ${
+                      isActive
+                        ? 'bg-[#183a6b] text-white shadow-md'
+                        : 'text-slate-400 hover:text-white/80'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                    {item.label}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </nav>
 
-      {/* Footer */}
-      <div className="px-4 py-4 border-t border-gray-200 bg-gray-50/50">
-        <div className="flex items-center justify-between px-2 py-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-keolis-blue/10 flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-semibold text-keolis-blue uppercase">
-                {user ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) : 'U'}
-              </span>
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-semibold text-gray-900 truncate" title={user?.name}>
-                {user?.name || 'User'}
-              </span>
-              <span className="text-[10px] text-gray-500 font-medium capitalize truncate">
-                {user?.role === 'initiator' ? 'Initiator' : user?.role === 'reviewer' ? 'Reviewer' : 'Approver'}
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            title="Sign Out"
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-          >
-            <LogOut className="w-4.5 h-4.5" />
-          </button>
-        </div>
+      {/* Footer / Version Info */}
+      <div className="px-6 py-4 border-t border-[#1a2b44] text-[11px] font-medium text-slate-500 tracking-wide">
+        v1.0.0 - Keolis 2026
       </div>
     </aside>
   );

@@ -46,13 +46,13 @@ export default function Login() {
   };
 
   const handleMockLogin = (role: 'initiator' | 'reviewer' | 'approver') => {
-    let mockProfile = {};
+    let mockProfile: any = {};
     if (role === 'initiator') {
       mockProfile = {
         name: 'Rajesh Kumar',
         email: 'rajesh.kumar@keolis.com',
         role: 'initiator',
-        employeeId: 'HMRL-EMP-4502',
+        employeeId: '0000',
         designation: 'Senior Engineer (Rolling Stock)',
       };
     } else if (role === 'reviewer') {
@@ -60,7 +60,7 @@ export default function Login() {
         name: 'Priya Sharma',
         email: 'priya.sharma@keolis.com',
         role: 'reviewer',
-        employeeId: 'HMRL-EMP-3320',
+        employeeId: '1111',
         designation: 'Depot Manager',
       };
     } else {
@@ -68,7 +68,7 @@ export default function Login() {
         name: 'Arun Reddy',
         email: 'arun.reddy@keolis.com',
         role: 'approver',
-        employeeId: 'HMRL-EMP-1002',
+        employeeId: '3333',
         designation: 'Head of Operations',
       };
     }

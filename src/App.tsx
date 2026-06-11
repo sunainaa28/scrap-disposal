@@ -3,6 +3,7 @@ import { useIsAuthenticated, useMsal } from '@azure/msal-react';
 import { useStore } from '@/store/useStore';
 import Layout from '@/components/Layout';
 import Login from '@/pages/Login';
+import Dashboard from '@/pages/Dashboard';
 import RequestList from '@/pages/RequestList';
 import CreateRequest from '@/pages/CreateRequest';
 import PreviewRequest from '@/pages/PreviewRequest';
@@ -60,13 +61,15 @@ export default function App() {
 
   // Fetch requests once user is authenticated (token is available)
   useEffect(() => {
-    if (user?.token) {
+    if (user) {
       fetchRequests();
     }
-  }, [user?.token, fetchRequests]);
+  }, [user, fetchRequests]);
 
   const renderView = () => {
     switch (currentView) {
+      case 'dashboard':
+        return <Dashboard />;
       case 'create':
         return <CreateRequest />;
       case 'preview':

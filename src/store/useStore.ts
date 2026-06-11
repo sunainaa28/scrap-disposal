@@ -22,8 +22,8 @@ interface AppState {
   logout: () => void;
 
   // Navigation
-  currentView: 'list' | 'create' | 'preview';
-  setCurrentView: (view: 'list' | 'create' | 'preview') => void;
+  currentView: 'dashboard' | 'list' | 'create' | 'preview';
+  setCurrentView: (view: 'dashboard' | 'list' | 'create' | 'preview') => void;
 
   // Requests
   requests: ScrapRequest[];
@@ -53,8 +53,10 @@ interface AppState {
   getFilteredRequests: () => ScrapRequest[];
 }
 
+import { SAMPLE_REQUESTS } from '@/data/constants';
+
 const initialFormData: Partial<ScrapRequest> = {
-  requestNumber: generateRequestNumber(),
+  requestNumber: '',
   date: new Date().toISOString().split('T')[0],
   department: '',
   reasonForDisposal: '',
@@ -70,64 +72,118 @@ const initialFilters: FilterState = {
   status: 'all',
 };
 
+// Local storage helper keys
+const STORAGE_KEYS = {
+  USER: 'scrap_disposal_user',
+  REQUESTS: 'scrap_disposal_requests',
+  DRAFT_FORM: 'scrap_disposal_draft_form',
+  DRAFT_ITEMS: 'scrap_disposal_draft_items',
+  VIEW: 'scrap_disposal_current_view',
+};
+
+// Initial state helpers
+const getSavedUser = (): UserProfile | null => {
+  const data = localStorage.getItem(STORAGE_KEYS.USER);
+  return data ? JSON.parse(data) : null;
+};
+
+const getSavedRequests = (): ScrapRequest[] => {
+  const data = localStorage.getItem(STORAGE_KEYS.REQUESTS);
+  if (data) {
+    return JSON.parse(data);
+  }
+  localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(SAMPLE_REQUESTS));
+  return SAMPLE_REQUESTS;
+};
+
+const getSavedDraftForm = (): Partial<ScrapRequest> => {
+  const data = localStorage.getItem(STORAGE_KEYS.DRAFT_FORM);
+  return data ? JSON.parse(data) : { ...initialFormData, requestNumber: generateRequestNumber() };
+};
+
+const getSavedDraftItems = (): ScrapItem[] => {
+  const data = localStorage.getItem(STORAGE_KEYS.DRAFT_ITEMS);
+  return data ? JSON.parse(data) : [];
+};
+
+const getSavedView = (): 'dashboard' | 'list' | 'create' | 'preview' => {
+  const data = localStorage.getItem(STORAGE_KEYS.VIEW);
+  return (data as any) || 'dashboard';
+};
+
 export const useStore = create<AppState>((set, get) => ({
   // Auth
-  user: null,
-  setUser: (user: UserProfile | null) => set({ user }),
-  setMockUser: (user: UserProfile) => set({ user, currentView: 'list' }),
+  user: getSavedUser(),
+  setUser: (user: UserProfile | null) => {
+    set({ user });
+    if (user) {
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.USER);
+    }
+  },
+  setMockUser: (user: UserProfile) => {
+    set({ user, currentView: 'dashboard' });
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+    localStorage.setItem(STORAGE_KEYS.VIEW, 'dashboard');
+  },
   logout: () => {
-    set({ user: null, requests: [], currentRequest: null, currentView: 'list' });
+    set({ user: null, requests: getSavedRequests(), currentRequest: null, currentView: 'dashboard' });
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.setItem(STORAGE_KEYS.VIEW, 'dashboard');
   },
 
   // Navigation
-  currentView: 'list',
-  setCurrentView: (view: 'list' | 'create' | 'preview') => set({ currentView: view }),
+  currentView: getSavedView(),
+  setCurrentView: (view: 'dashboard' | 'list' | 'create' | 'preview') => {
+    set({ currentView: view });
+    localStorage.setItem(STORAGE_KEYS.VIEW, view);
+  },
 
   // Requests
-  requests: [],
+  requests: getSavedRequests(),
   currentRequest: null,
   setCurrentRequest: (request: ScrapRequest | null) => set({ currentRequest: request }),
 
   // Form state
-  formData: { ...initialFormData },
-  formItems: [],
+  formData: getSavedDraftForm(),
+  formItems: getSavedDraftItems(),
   updateFormData: (data: Partial<ScrapRequest>) =>
-    set((state: AppState) => ({ formData: { ...state.formData, ...data } })),
-  updateFormItems: (items: ScrapItem[]) => set({ formItems: items }),
-  resetForm: () =>
-    set({
-      formData: {
-        ...initialFormData,
-        requestNumber: generateRequestNumber(),
-      },
-      formItems: [],
+    set((state: AppState) => {
+      const updated = { ...state.formData, ...data };
+      localStorage.setItem(STORAGE_KEYS.DRAFT_FORM, JSON.stringify(updated));
+      return { formData: updated };
     }),
+  updateFormItems: (items: ScrapItem[]) => {
+    set({ formItems: items });
+    localStorage.setItem(STORAGE_KEYS.DRAFT_ITEMS, JSON.stringify(items));
+  },
+  resetForm: () => {
+    const freshForm = {
+      ...initialFormData,
+      requestNumber: generateRequestNumber(),
+    };
+    set({
+      formData: freshForm,
+      formItems: [],
+    });
+    localStorage.setItem(STORAGE_KEYS.DRAFT_FORM, JSON.stringify(freshForm));
+    localStorage.setItem(STORAGE_KEYS.DRAFT_ITEMS, JSON.stringify([]));
+  },
 
   // Actions
   fetchRequests: async () => {
-    const token = get().user?.token;
-    if (!token) return;
-
-    try {
-      const response = await fetch('/api/requests', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch requests');
-      const data = await response.json();
-      set({ requests: data });
-    } catch (error) {
-      console.error('fetchRequests error:', error);
-    }
+    // Already loaded synchronously, but let's sync from localStorage to be safe
+    const saved = getSavedRequests();
+    set({ requests: saved });
   },
 
   createRequest: async (status: RequestStatus) => {
-    const token = get().user?.token;
-    if (!token) throw new Error('Unauthorized: No access token');
+    const user = get().user;
+    if (!user) throw new Error('Unauthorized: No user session');
 
     const state = get();
-    const requestPayload = {
+    const requestPayload: ScrapRequest = {
       id: generateId(),
       requestNumber: state.formData.requestNumber || generateRequestNumber(),
       date: state.formData.date || new Date().toISOString().split('T')[0],
@@ -138,106 +194,113 @@ export const useStore = create<AppState>((set, get) => ({
       categoryVerification: state.formData.categoryVerification ?? null,
       remarks: state.formData.remarks || '',
       status,
+      initiatedBy: {
+        name: state.formData.initiatedBy?.name || user.name,
+        employeeId: state.formData.initiatedBy?.employeeId || user.employeeId || 'KEO-XXXX',
+        designation: state.formData.initiatedBy?.designation || user.designation || 'Maintenance Engineer',
+        date: state.formData.date || new Date().toISOString().split('T')[0],
+      },
+      reviewedBy: {
+        name: 'Priya Sharma',
+        designation: 'Depot Manager',
+        status: 'pending',
+      },
+      approvedBy: {
+        name: 'Arun Reddy',
+        designation: 'Head of Operations',
+        status: 'pending',
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    try {
-      const response = await fetch('/api/requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(requestPayload),
-      });
+    const currentRequests = getSavedRequests();
+    const updatedRequests = [requestPayload, ...currentRequests];
+    localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(updatedRequests));
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to create request');
-      }
+    set({
+      requests: updatedRequests,
+      currentRequest: requestPayload,
+    });
 
-      const created: ScrapRequest = await response.json();
-      set((state: AppState) => ({
-        requests: [created, ...state.requests],
-        currentRequest: created,
-      }));
+    // Clear drafts after creation
+    get().resetForm();
 
-      return created;
-    } catch (error) {
-      console.error('createRequest error:', error);
-      throw error;
-    }
+    return requestPayload;
   },
 
-  saveDraft: () => {
+  saveDraft: async () => {
     return get().createRequest('draft');
   },
 
-  submitRequest: () => {
+  submitRequest: async () => {
     return get().createRequest('pending');
   },
 
   reviewRequest: async (id: string, status: 'approved' | 'rejected') => {
-    const token = get().user?.token;
-    if (!token) throw new Error('Unauthorized: No access token');
+    const user = get().user;
+    if (!user) throw new Error('Unauthorized');
 
-    try {
-      const response = await fetch(`/api/requests/${id}/review`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status }),
-      });
+    const currentRequests = getSavedRequests();
+    const reqIndex = currentRequests.findIndex((r) => r.id === id);
+    if (reqIndex === -1) throw new Error('Request not found');
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to review request');
-      }
+    const request = currentRequests[reqIndex];
+    const nextStatus = status === 'approved' ? 'reviewed' : 'rejected';
 
-      const updated: ScrapRequest = await response.json();
-      set((state: AppState) => ({
-        requests: state.requests.map((r) => r.id === id ? updated : r),
-        currentRequest: updated,
-      }));
+    const updatedRequest: ScrapRequest = {
+      ...request,
+      status: nextStatus,
+      reviewedBy: {
+        name: user.name,
+        designation: user.designation || 'Depot Manager',
+        status: status,
+      },
+      updatedAt: new Date().toISOString(),
+    };
 
-      return updated;
-    } catch (error) {
-      console.error('reviewRequest error:', error);
-      throw error;
-    }
+    currentRequests[reqIndex] = updatedRequest;
+    localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(currentRequests));
+
+    set({
+      requests: [...currentRequests],
+      currentRequest: updatedRequest,
+    });
+
+    return updatedRequest;
   },
 
   approveRequest: async (id: string, status: 'approved' | 'rejected') => {
-    const token = get().user?.token;
-    if (!token) throw new Error('Unauthorized: No access token');
+    const user = get().user;
+    if (!user) throw new Error('Unauthorized');
 
-    try {
-      const response = await fetch(`/api/requests/${id}/approve`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status }),
-      });
+    const currentRequests = getSavedRequests();
+    const reqIndex = currentRequests.findIndex((r) => r.id === id);
+    if (reqIndex === -1) throw new Error('Request not found');
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to approve request');
-      }
+    const request = currentRequests[reqIndex];
+    const nextStatus = status === 'approved' ? 'approved' : 'rejected';
 
-      const updated: ScrapRequest = await response.json();
-      set((state: AppState) => ({
-        requests: state.requests.map((r) => r.id === id ? updated : r),
-        currentRequest: updated,
-      }));
+    const updatedRequest: ScrapRequest = {
+      ...request,
+      status: nextStatus,
+      approvedBy: {
+        name: user.name,
+        designation: user.designation || 'Head of Operations',
+        status: status,
+      },
+      updatedAt: new Date().toISOString(),
+    };
 
-      return updated;
-    } catch (error) {
-      console.error('approveRequest error:', error);
-      throw error;
-    }
+    currentRequests[reqIndex] = updatedRequest;
+    localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(currentRequests));
+
+    set({
+      requests: [...currentRequests],
+      currentRequest: updatedRequest,
+    });
+
+    return updatedRequest;
   },
 
   getRequestById: (id: string) => {
