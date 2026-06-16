@@ -1,4 +1,5 @@
 import { useStore } from '@/store/useStore';
+import { useSidebar } from '@/components/ui/sidebar';
 import {
   LayoutDashboard,
   Trash2,
@@ -9,6 +10,7 @@ import {
 
 export default function Sidebar() {
   const { user, currentView, setCurrentView, resetForm } = useStore();
+  const { open } = useSidebar();
 
   const handleNavigate = (view: 'dashboard' | 'list' | 'create') => {
     if (view === 'create') {
@@ -39,7 +41,10 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-64 bg-[#0a1424] border-r border-[#1a2b44] flex flex-col h-screen sticky top-0 text-slate-300 select-none">
+    <aside className={`bg-[#0a1424] border-r border-[#1a2b44] flex flex-col h-screen sticky top-0 text-slate-300 select-none transition-all duration-300 ${
+      open ? 'w-64' : 'w-0 overflow-hidden border-r-0'
+    }`}>
+
       {/* Logo Area */}
       <div className="px-6 py-5 border-b border-[#1a2b44]">
         <div className="flex items-center gap-3">
