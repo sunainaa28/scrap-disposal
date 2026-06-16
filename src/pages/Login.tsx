@@ -34,6 +34,10 @@ export default function Login() {
       setError('Please enter your password.');
       return;
     }
+    if (password !== '123') {
+      setError('Invalid password. Please use "123" for demo purposes.');
+      return;
+    }
     setError(null);
     // Determine role from employee ID prefix for demo purposes
     if (employeeId.startsWith('APP')) {

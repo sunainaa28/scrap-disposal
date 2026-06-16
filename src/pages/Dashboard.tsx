@@ -10,7 +10,7 @@ import {
 import type { ScrapRequest, RequestStatus } from '@/types';
 
 export default function Dashboard() {
-  const { requests, setCurrentView, setCurrentRequest, updateFilters, resetForm } = useStore();
+  const { user, requests, setCurrentView, setCurrentRequest, updateFilters, resetForm } = useStore();
 
   // Get recent 5 requests (sorted by createdAt or updatedAt descending)
   const recentRequests = [...requests]
@@ -91,13 +91,15 @@ export default function Dashboard() {
             Overview of materials and scrap disposal operations.
           </p>
         </div>
-        <button
-          onClick={handleCreateNew}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0f3d8c] hover:bg-[#0a2e6b] text-white rounded-lg text-sm font-semibold transition-all duration-200 shadow-sm cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          New Scrap Request
-        </button>
+        {user?.role === 'initiator' && (
+          <button
+            onClick={handleCreateNew}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0f3d8c] hover:bg-[#0a2e6b] text-white rounded-lg text-sm font-semibold transition-all duration-200 shadow-sm cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            New Scrap Request
+          </button>
+        )}
       </div>
 
       {/* Stats Section */}

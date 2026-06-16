@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import type { ScrapItem } from '@/types';
+import { APPROVAL_LEVELS } from '@/data/constants';
 import {
   ArrowLeft,
   Printer,
@@ -119,6 +120,24 @@ export default function PreviewRequest() {
         </div>
 
         <div className="flex items-center gap-3">
+          {(canReview || canApprove) && (
+            <div className="flex items-center gap-2 border-r border-gray-200 pr-3 mr-1 no-print">
+              <button
+                onClick={() => handleAction('rejected')}
+                disabled={submitting}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition cursor-pointer shadow-sm disabled:opacity-50"
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => handleAction('approved')}
+                disabled={submitting}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition cursor-pointer shadow-sm disabled:opacity-50"
+              >
+                Approve
+              </button>
+            </div>
+          )}
           <button
             onClick={() => setCurrentView('list')}
             className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer shadow-sm"
@@ -190,6 +209,22 @@ export default function PreviewRequest() {
           </div>
         </div>
 
+        {/* Scrap Photos Gallery */}
+        {currentRequest.photos && currentRequest.photos.length > 0 && (
+          <div className="px-8 pt-8">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">
+              Scrap Photos
+            </h3>
+            <div className="flex flex-wrap gap-4">
+              {currentRequest.photos.map((photo: string, idx: number) => (
+                <div key={idx} className="w-32 h-32 rounded-lg border border-gray-200 overflow-hidden">
+                  <img src={photo} alt={`Scrap ${idx}`} className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         {/* Scrap Material Details Table */}
         <div className="p-8">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">
@@ -218,7 +253,10 @@ export default function PreviewRequest() {
                     TYPE OF WASTE
                   </th>
                   <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    SCRAP LOCATION
+                    FROM LOCATION
+                  </th>
+                  <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    TO LOCATION
                   </th>
                 </tr>
               </thead>
@@ -242,7 +280,8 @@ export default function PreviewRequest() {
                         {item.typeOfWaste}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{item.scrapLocation}</td>
+                    <td className="px-4 py-3 text-gray-600">{item.fromLocation}</td>
+                    <td className="px-4 py-3 text-gray-600">{item.toLocation}</td>
                   </tr>
                 ))}
               </tbody>
@@ -259,10 +298,10 @@ export default function PreviewRequest() {
             {/* Reason for disposal */}
             <div className="border border-gray-200 rounded-lg p-4 bg-white flex flex-col justify-between min-h-[90px]">
               <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-                REASON FOR DISPOSAL
+                DESCRIPTION / REASON
               </span>
               <span className="text-sm font-semibold text-gray-700 leading-relaxed">
-                {currentRequest.reasonForDisposal}
+                {currentRequest.descriptionReason}
               </span>
             </div>
 
@@ -298,121 +337,55 @@ export default function PreviewRequest() {
           </div>
         </div>
 
-        {/* Approval Workflow Columns */}
+                {/* Approval Workflow Columns */}
         <div className="px-8 pb-10">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">
             Approval Workflow
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Card 1: Initiator */}
-            <div className="border border-gray-200 rounded-lg p-5 bg-white relative flex flex-col justify-between min-h-[200px]">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  INITIATED BY
-                </span>
-                {getWorkflowStatusBadge('approved')}
-              </div>
-              <div className="space-y-3 flex-1 flex flex-col justify-end">
-                <div>
-                  <span className="block text-[10px] text-gray-400 font-semibold mb-0.5">Employee Name</span>
-                  <span className="text-sm font-bold text-gray-800">{currentRequest.initiatedBy.name}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="block text-[10px] text-gray-400 font-semibold mb-0.5">Employee ID</span>
-                    <span className="text-xs font-mono font-bold text-gray-700">{currentRequest.initiatedBy.employeeId}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] text-gray-400 font-semibold mb-0.5">Date</span>
-                    <span className="text-xs font-semibold text-gray-700">{currentRequest.initiatedBy.date}</span>
-                  </div>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-gray-400 font-semibold mb-0.5">Designation</span>
-                  <span className="text-xs font-semibold text-gray-700">{currentRequest.initiatedBy.designation}</span>
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {APPROVAL_LEVELS.map((level, index) => {
+              // Map legacy data to first 3 levels for backward compatibility
+              let levelStatus = 'pending';
+              let name = 'TBD';
+              let designation = level.title;
+              let dateStr = '';
+              
+              if (index === 0) {
+                levelStatus = 'approved';
+                name = currentRequest.initiatedBy?.name || 'User';
+                dateStr = currentRequest.initiatedBy?.date || '';
+              } else if (index === 1) {
+                levelStatus = currentRequest.reviewedBy?.status || 'pending';
+                name = currentRequest.reviewedBy?.name || 'TBD';
+              } else if (index === 2) {
+                levelStatus = currentRequest.approvedBy?.status || 'pending';
+                name = currentRequest.approvedBy?.name || 'TBD';
+              }
 
-            {/* Card 2: Reviewer */}
-            <div className="border border-[#e2e8f0] rounded-lg p-5 bg-white relative flex flex-col justify-between min-h-[200px]">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  REVIEWED BY
-                </span>
-                {getWorkflowStatusBadge(currentRequest.reviewedBy.status)}
-              </div>
-              <div className="space-y-3 flex-1 flex flex-col justify-end">
-                <div>
-                  <span className="block text-[10px] text-gray-400 font-semibold mb-0.5">Reviewer Name</span>
-                  <span className="text-sm font-bold text-gray-800">{currentRequest.reviewedBy.name}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-gray-400 font-semibold mb-0.5">Designation</span>
-                  <span className="text-xs font-semibold text-gray-700">{currentRequest.reviewedBy.designation}</span>
-                </div>
-
-                {/* Inline Action Buttons inside Card for Reviewer */}
-                {canReview && (
-                  <div className="flex items-center gap-2 pt-2 no-print">
-                    <button
-                      onClick={() => handleAction('rejected')}
-                      disabled={submitting}
-                      className="flex-1 border border-red-200 hover:bg-red-50 text-red-600 font-semibold py-1.5 rounded-lg text-xs transition cursor-pointer text-center disabled:opacity-50"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      onClick={() => handleAction('approved')}
-                      disabled={submitting}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 rounded-lg text-xs transition cursor-pointer text-center disabled:opacity-50 shadow-sm"
-                    >
-                      Approve
-                    </button>
+              return (
+                <div key={level.level} className={`border ${index === 1 ? 'border-[#e2e8f0]' : 'border-gray-200'} rounded-lg p-4 bg-white relative flex flex-col justify-between min-h-[140px]`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      LEVEL {level.level}
+                    </span>
+                    {/* @ts-ignore */}
+                    {getWorkflowStatusBadge(levelStatus)}
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Card 3: Approver */}
-            <div className="border border-gray-200 rounded-lg p-5 bg-white relative flex flex-col justify-between min-h-[200px]">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  APPROVED BY (HOD)
-                </span>
-                {getWorkflowStatusBadge(currentRequest.approvedBy.status)}
-              </div>
-              <div className="space-y-3 flex-1 flex flex-col justify-end">
-                <div>
-                  <span className="block text-[10px] text-gray-400 font-semibold mb-0.5">HOD Name</span>
-                  <span className="text-sm font-bold text-gray-800">{currentRequest.approvedBy.name}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-gray-400 font-semibold mb-0.5">Designation</span>
-                  <span className="text-xs font-semibold text-gray-700">{currentRequest.approvedBy.designation}</span>
-                </div>
-
-                {/* Inline Action Buttons inside Card for Approver */}
-                {canApprove && (
-                  <div className="flex items-center gap-2 pt-2 no-print">
-                    <button
-                      onClick={() => handleAction('rejected')}
-                      disabled={submitting}
-                      className="flex-1 border border-red-200 hover:bg-red-50 text-red-600 font-semibold py-1.5 rounded-lg text-xs transition cursor-pointer text-center disabled:opacity-50"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      onClick={() => handleAction('approved')}
-                      disabled={submitting}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 rounded-lg text-xs transition cursor-pointer text-center disabled:opacity-50 shadow-sm"
-                    >
-                      Approve
-                    </button>
+                  <div className="space-y-2 flex-1 flex flex-col justify-end">
+                    <div>
+                      <span className="block text-[10px] text-gray-400 font-semibold mb-0.5">{designation}</span>
+                      <span className="text-xs font-bold text-gray-800">{name}</span>
+                    </div>
+                    {dateStr && (
+                      <div>
+                        <span className="block text-[10px] text-gray-400 font-semibold mb-0.5">Date</span>
+                        <span className="text-xs font-semibold text-gray-700">{dateStr}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

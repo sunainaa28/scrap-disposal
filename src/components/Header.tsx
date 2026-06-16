@@ -1,8 +1,9 @@
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, LogOut } from 'lucide-react';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useStore } from '@/store/useStore';
 
 export default function Header() {
-  const { user, filters, updateFilters, currentView, setCurrentView } = useStore();
+  const { user, logout, filters, updateFilters, currentView, setCurrentView } = useStore();
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateFilters({ searchQuery: e.target.value });
@@ -22,6 +23,8 @@ export default function Header() {
 
   return (
     <header className="bg-white border-b border-gray-200 px-8 py-3.5 flex items-center justify-between sticky top-0 z-40 h-16">
+      {/* Sidebar Toggle */}
+      <SidebarTrigger className="mr-2" />
       {/* Search Input Box */}
       <div className="flex-1 max-w-md relative">
         <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -56,6 +59,14 @@ export default function Header() {
             <div className="w-9 h-9 bg-blue-900 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-sm select-none">
               {getInitials(user.name)}
             </div>
+            {/* Logout Button */}
+            <button
+              onClick={logout}
+              className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50/50 transition-all cursor-pointer"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>

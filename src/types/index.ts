@@ -6,7 +6,9 @@ export interface ScrapItem {
   uom: string;
   quantity: number;
   typeOfWaste: string;
-  scrapLocation: string;
+  fromLocation: string;
+  toLocation: string;
+  photo?: string;
 }
 
 export interface ScrapRequest {
@@ -15,7 +17,11 @@ export interface ScrapRequest {
   date: string;
   department: string;
   items: ScrapItem[];
-  reasonForDisposal: string;
+  photos?: string[];
+  category: string;
+  system: string;
+  location: string;
+  descriptionReason: string;
   requirementCheck: 'yes' | 'no' | null;
   categoryVerification: 'yes' | 'no' | null;
   remarks: string;

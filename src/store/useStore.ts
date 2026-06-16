@@ -59,7 +59,11 @@ const initialFormData: Partial<ScrapRequest> = {
   requestNumber: '',
   date: new Date().toISOString().split('T')[0],
   department: '',
-  reasonForDisposal: '',
+  category: '',
+  system: '',
+  location: '',
+  descriptionReason: '',
+  photos: [],
   requirementCheck: null,
   categoryVerification: null,
   remarks: '',
@@ -80,6 +84,8 @@ const STORAGE_KEYS = {
   DRAFT_ITEMS: 'scrap_disposal_draft_items',
   VIEW: 'scrap_disposal_current_view',
 };
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Initial state helpers
 const getSavedUser = (): UserProfile | null => {
@@ -173,7 +179,22 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Actions
   fetchRequests: async () => {
-    // Already loaded synchronously, but let's sync from localStorage to be safe
+    const user = get().user;
+    if (!user) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/requests`, {
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+        },
+      });
+      if (response.ok) {
+        const requests = await response.json();
+        set({ requests });
+        return;
+      }
+    } catch (err) {
+      console.error('Failed to fetch requests from server, falling back to localStorage:', err);
+    }
     const saved = getSavedRequests();
     set({ requests: saved });
   },
@@ -183,17 +204,63 @@ export const useStore = create<AppState>((set, get) => ({
     if (!user) throw new Error('Unauthorized: No user session');
 
     const state = get();
-    const requestPayload: ScrapRequest = {
+    const requestPayload: Partial<ScrapRequest> = {
       id: generateId(),
       requestNumber: state.formData.requestNumber || generateRequestNumber(),
       date: state.formData.date || new Date().toISOString().split('T')[0],
       department: state.formData.department || '',
+      category: state.formData.category || '',
+      system: state.formData.system || '',
+      location: state.formData.location || '',
       items: state.formItems,
-      reasonForDisposal: state.formData.reasonForDisposal || '',
+      photos: state.formData.photos || [],
+      descriptionReason: state.formData.descriptionReason || '',
       requirementCheck: state.formData.requirementCheck ?? null,
       categoryVerification: state.formData.categoryVerification ?? null,
       remarks: state.formData.remarks || '',
       status,
+    };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/requests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`,
+        },
+        body: JSON.stringify(requestPayload),
+      });
+
+      if (response.ok) {
+        const savedRequest = await response.json();
+        const currentRequests = get().requests;
+        set({
+          requests: [savedRequest, ...currentRequests],
+          currentRequest: savedRequest,
+        });
+        get().resetForm();
+        return savedRequest;
+      }
+    } catch (err) {
+      console.error('Failed to create request on server, falling back to localStorage:', err);
+    }
+
+    // Fallback logic
+    const fullPayload: ScrapRequest = {
+      id: requestPayload.id!,
+      requestNumber: requestPayload.requestNumber!,
+      date: requestPayload.date!,
+      department: requestPayload.department!,
+      category: requestPayload.category!,
+      system: requestPayload.system!,
+      location: requestPayload.location!,
+      items: requestPayload.items!,
+      photos: requestPayload.photos || [],
+      descriptionReason: requestPayload.descriptionReason!,
+      requirementCheck: requestPayload.requirementCheck!,
+      categoryVerification: requestPayload.categoryVerification!,
+      remarks: requestPayload.remarks!,
+      status: requestPayload.status!,
       initiatedBy: {
         name: state.formData.initiatedBy?.name || user.name,
         employeeId: state.formData.initiatedBy?.employeeId || user.employeeId || 'KEO-XXXX',
@@ -215,18 +282,15 @@ export const useStore = create<AppState>((set, get) => ({
     };
 
     const currentRequests = getSavedRequests();
-    const updatedRequests = [requestPayload, ...currentRequests];
+    const updatedRequests = [fullPayload, ...currentRequests];
     localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(updatedRequests));
 
     set({
       requests: updatedRequests,
-      currentRequest: requestPayload,
+      currentRequest: fullPayload,
     });
-
-    // Clear drafts after creation
     get().resetForm();
-
-    return requestPayload;
+    return fullPayload;
   },
 
   saveDraft: async () => {
@@ -240,6 +304,33 @@ export const useStore = create<AppState>((set, get) => ({
   reviewRequest: async (id: string, status: 'approved' | 'rejected') => {
     const user = get().user;
     if (!user) throw new Error('Unauthorized');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/requests/${id}/review`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        const updatedRequest = await response.json();
+        const currentRequests = get().requests;
+        const reqIndex = currentRequests.findIndex((r) => r.id === id);
+        if (reqIndex !== -1) {
+          currentRequests[reqIndex] = updatedRequest;
+        }
+        set({
+          requests: [...currentRequests],
+          currentRequest: updatedRequest,
+        });
+        return updatedRequest;
+      }
+    } catch (err) {
+      console.error('Failed to review request on server, falling back to localStorage:', err);
+    }
 
     const currentRequests = getSavedRequests();
     const reqIndex = currentRequests.findIndex((r) => r.id === id);
@@ -273,6 +364,33 @@ export const useStore = create<AppState>((set, get) => ({
   approveRequest: async (id: string, status: 'approved' | 'rejected') => {
     const user = get().user;
     if (!user) throw new Error('Unauthorized');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/requests/${id}/approve`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        const updatedRequest = await response.json();
+        const currentRequests = get().requests;
+        const reqIndex = currentRequests.findIndex((r) => r.id === id);
+        if (reqIndex !== -1) {
+          currentRequests[reqIndex] = updatedRequest;
+        }
+        set({
+          requests: [...currentRequests],
+          currentRequest: updatedRequest,
+        });
+        return updatedRequest;
+      }
+    } catch (err) {
+      console.error('Failed to approve request on server, falling back to localStorage:', err);
+    }
 
     const currentRequests = getSavedRequests();
     const reqIndex = currentRequests.findIndex((r) => r.id === id);

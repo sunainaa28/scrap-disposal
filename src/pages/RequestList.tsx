@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 export default function RequestList() {
+  const user = useStore((state) => state.user);
   const requests = useStore((state) => state.requests);
   const filters = useStore((state) => state.filters);
   const updateFilters = useStore((state) => state.updateFilters);
@@ -84,13 +85,15 @@ export default function RequestList() {
             Manage and track all scrap material disposal request notes.
           </p>
         </div>
-        <button
-          onClick={handleCreateNew}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0f3d8c] hover:bg-[#0a2e6b] text-white rounded-lg text-sm font-semibold transition cursor-pointer shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          New Request
-        </button>
+        {user?.role === 'initiator' && (
+          <button
+            onClick={handleCreateNew}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0f3d8c] hover:bg-[#0a2e6b] text-white rounded-lg text-sm font-semibold transition cursor-pointer shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            New Request
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -307,13 +310,15 @@ export default function RequestList() {
                 Clear Filters
               </button>
             ) : (
-              <button
-                onClick={handleCreateNew}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-keolis-blue text-white rounded-lg text-sm font-medium hover:bg-keolis-blue-dark transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Create Request
-              </button>
+              user?.role === 'initiator' && (
+                <button
+                  onClick={handleCreateNew}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-keolis-blue text-white rounded-lg text-sm font-medium hover:bg-keolis-blue-dark transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Request
+                </button>
+              )
             )}
           </div>
         ) : (

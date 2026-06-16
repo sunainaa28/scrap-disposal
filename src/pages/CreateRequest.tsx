@@ -4,6 +4,7 @@ import {
   DEPARTMENTS,
   UOM_OPTIONS,
   WASTE_TYPES,
+  CATEGORIES,
   generateId,
 } from '@/data/constants';
 import type { ScrapItem } from '@/types';
@@ -15,6 +16,7 @@ import {
   Send,
   X,
   ChevronDown,
+  Upload,
 } from 'lucide-react';
 
 export default function CreateRequest() {
@@ -69,7 +71,8 @@ export default function CreateRequest() {
       uom: 'Nos',
       quantity: 1,
       typeOfWaste: 'Damaged',
-      scrapLocation: '',
+      fromLocation: '',
+      toLocation: '',
     };
     updateFormItems([...formItems, newItem]);
   };
@@ -88,41 +91,51 @@ export default function CreateRequest() {
     updateFormItems(updated);
   };
 
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const existingCount = formData.photos?.length || 0;
+    const toProcess = files.slice(0, 5 - existingCount);
+
+    toProcess.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateFormData({
+          photos: [...(useStore.getState().formData.photos || []), reader.result as string]
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (index: number) => {
+    const newPhotos = [...(formData.photos || [])];
+    newPhotos.splice(index, 1);
+    updateFormData({ photos: newPhotos });
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.department) {
-      newErrors.department = 'Department is required';
-    }
-    if (!formData.date) {
-      newErrors.date = 'Date is required';
-    }
+    if (!formData.department) newErrors.department = 'Department is required';
+    if (!formData.category) newErrors.categoryField = 'Category is required';
+    if (!formData.date) newErrors.date = 'Date is required';
+
     if (formItems.length === 0) {
       newErrors.items = 'At least one scrap item is required';
     } else {
       formItems.forEach((item: ScrapItem, index: number) => {
-        if (!item.materialDescription.trim()) {
-          newErrors[`item-${index}-desc`] = 'Required';
-        }
-        if (!item.materialNumber.trim()) {
-          newErrors[`item-${index}-num`] = 'Required';
-        }
-        if (item.quantity <= 0) {
-          newErrors[`item-${index}-qty`] = 'Invalid';
-        }
-        if (!item.scrapLocation.trim()) {
-          newErrors[`item-${index}-loc`] = 'Required';
-        }
+        if (!item.materialDescription.trim()) newErrors[`item-${index}-desc`] = 'Required';
+        if (!item.materialNumber.trim()) newErrors[`item-${index}-num`] = 'Required';
+        if (item.quantity <= 0) newErrors[`item-${index}-qty`] = 'Invalid';
+        if (!item.fromLocation) newErrors[`item-${index}-from`] = 'Required';
+        if (!item.toLocation) newErrors[`item-${index}-to`] = 'Required';
       });
     }
-    if (!formData.reasonForDisposal?.trim()) {
-      newErrors.reason = 'Reason for disposal is required';
-    }
-    if (!formData.requirementCheck) {
-      newErrors.requirement = 'Please select Yes or No';
-    }
-    if (!formData.categoryVerification) {
-      newErrors.category = 'Please select Yes or No';
+
+    if (!formData.descriptionReason?.trim()) {
+      newErrors.descriptionReason = 'Description / Reason is required';
     }
 
     setErrors(newErrors);
@@ -240,11 +253,10 @@ export default function CreateRequest() {
                 type="date"
                 value={formData.date || ''}
                 onChange={(e) => updateFormData({ date: e.target.value })}
-                className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${
-                  errors.date && showValidation
+                className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${errors.date && showValidation
                     ? 'border-red-300 bg-red-50'
                     : 'border-gray-200'
-                }`}
+                  }`}
               />
               {errors.date && showValidation && (
                 <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
@@ -254,7 +266,7 @@ export default function CreateRequest() {
               )}
             </div>
 
-            {/* Department */}
+            {/* System */}
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                 Department <span className="text-red-500">*</span>
@@ -263,13 +275,12 @@ export default function CreateRequest() {
                 <select
                   value={formData.department || ''}
                   onChange={(e) => updateFormData({ department: e.target.value })}
-                  className={`w-full px-3 py-2.5 border rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] bg-white ${
-                    errors.department && showValidation
+                  className={`w-full px-3 py-2.5 border rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] bg-white ${errors.department && showValidation
                       ? 'border-red-300 bg-red-50'
                       : 'border-gray-200'
-                  }`}
+                    }`}
                 >
-                  <option value="">Select department</option>
+                  <option value="">Select system</option>
                   {DEPARTMENTS.map((dept: string) => (
                     <option key={dept} value={dept}>
                       {dept}
@@ -338,8 +349,14 @@ export default function CreateRequest() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">
                   TYPE OF WASTE *
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[180px]">
-                  SCRAP LOCATION *
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[160px]">
+                  FROM LOCATION *
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[160px]">
+                  TO LOCATION *
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-20">
+                  PHOTO
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-20">
                 </th>
@@ -349,7 +366,7 @@ export default function CreateRequest() {
               {formItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={10}
                     className="px-4 py-12 text-center text-gray-400"
                   >
                     <div className="flex flex-col items-center gap-2">
@@ -375,11 +392,10 @@ export default function CreateRequest() {
                           updateItem(item.id, 'materialDescription', e.target.value)
                         }
                         placeholder="e.g. Traction Motor Belt"
-                        className={`w-full px-2.5 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${
-                          errors[`item-${index}-desc`] && showValidation
+                        className={`w-full px-2.5 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${errors[`item-${index}-desc`] && showValidation
                             ? 'border-red-300 bg-red-50'
                             : 'border-gray-200 bg-white'
-                        }`}
+                          }`}
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -390,11 +406,10 @@ export default function CreateRequest() {
                           updateItem(item.id, 'materialNumber', e.target.value)
                         }
                         placeholder="MAT-XXXXXX"
-                        className={`w-full px-2.5 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${
-                          errors[`item-${index}-num`] && showValidation
+                        className={`w-full px-2.5 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${errors[`item-${index}-num`] && showValidation
                             ? 'border-red-300 bg-red-50'
                             : 'border-gray-200 bg-white'
-                        }`}
+                          }`}
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -427,11 +442,10 @@ export default function CreateRequest() {
                             parseInt(e.target.value) || 1
                           )
                         }
-                        className={`w-full px-2.5 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${
-                          errors[`item-${index}-qty`] && showValidation
+                        className={`w-full px-2.5 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${errors[`item-${index}-qty`] && showValidation
                             ? 'border-red-300 bg-red-50'
                             : 'border-gray-200 bg-white'
-                        }`}
+                          }`}
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -455,16 +469,41 @@ export default function CreateRequest() {
                     <td className="px-4 py-3">
                       <input
                         type="text"
-                        value={item.scrapLocation}
-                        onChange={(e) =>
-                          updateItem(item.id, 'scrapLocation', e.target.value)
-                        }
-                        placeholder="e.g. Uppal Depot - Bay 3"
-                        className={`w-full px-2.5 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${
-                          errors[`item-${index}-loc`] && showValidation
+                        placeholder="From Location"
+                        value={item.fromLocation || ''}
+                        onChange={(e) => updateItem(item.id, 'fromLocation', e.target.value)}
+                        className={`w-full px-2.5 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${errors[`item-${index}-from`] && showValidation
                             ? 'border-red-300 bg-red-50'
                             : 'border-gray-200 bg-white'
-                        }`}
+                          }`}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="text"
+                        placeholder="To Location"
+                        value={item.toLocation || ''}
+                        onChange={(e) => updateItem(item.id, 'toLocation', e.target.value)}
+                        className={`w-full px-2.5 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${errors[`item-${index}-to`] && showValidation
+                            ? 'border-red-300 bg-red-50'
+                            : 'border-gray-200 bg-white'
+                          }`}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            updateItem(item.id, 'photo', reader.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                        className="w-full text-sm"
                       />
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -492,116 +531,103 @@ export default function CreateRequest() {
           </h2>
         </div>
         <div className="p-6 space-y-6">
-          {/* Reason for Disposal */}
+          {/* New Dropdowns */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Category */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                Category <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.category || ''}
+                  onChange={(e) => updateFormData({ category: e.target.value })}
+                  className={`w-full px-3 py-2.5 border rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] bg-white ${errors.categoryField && showValidation
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-gray-200'
+                    }`}
+                >
+                  <option value="">Select Category</option>
+                  {CATEGORIES.map((catGroup) => (
+                    <optgroup key={catGroup.group} label={catGroup.group}>
+                      {catGroup.options.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+              {errors.categoryField && showValidation && (
+                <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.categoryField}
+                </p>
+              )}
+            </div>
+
+
+          </div>
+
+          {/* Description / Reason */}
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-              Reason for Disposal <span className="text-red-500">*</span>
+              Description / Reason <span className="text-red-500">*</span>
             </label>
             <textarea
-              value={formData.reasonForDisposal || ''}
+              value={formData.descriptionReason || ''}
               onChange={(e) =>
-                updateFormData({ reasonForDisposal: e.target.value })
+                updateFormData({ descriptionReason: e.target.value })
               }
               rows={3}
-              placeholder="e.g. Belt got damaged during operation and replaced."
-              className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] resize-none ${
-                errors.reason && showValidation
+              placeholder="e.g. Scrapped, Condemned, Shelf-Life Expired, Damaged, Replaced..."
+              className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] resize-none ${errors.descriptionReason && showValidation
                   ? 'border-red-300 bg-red-50'
                   : 'border-gray-200'
-              }`}
+                }`}
             />
-            {errors.reason && showValidation && (
+            {errors.descriptionReason && showValidation && (
               <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" />
-                {errors.reason}
+                {errors.descriptionReason}
               </p>
             )}
           </div>
 
-          {/* Radio Questions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Requirement Check */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-3">
-                Is there any requirement for these materials elsewhere in the company? <span className="text-red-500">*</span>
-              </label>
-              <div className="flex gap-4">
-                <label className={`flex-1 flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer bg-white transition-all select-none hover:bg-gray-50/50 ${
-                  formData.requirementCheck === 'yes' ? 'border-[#0f3d8c] ring-1 ring-[#0f3d8c]/20' : 'border-gray-200'
-                }`}>
+          {/* Scrap Photos Upload */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+              Scrap Photos (Max 5)
+            </label>
+            <div className="flex flex-wrap gap-4 items-start">
+              {(formData.photos || []).map((photo, idx) => (
+                <div key={idx} className="relative w-24 h-24 rounded-lg border border-gray-200 overflow-hidden group">
+                  <img src={photo} alt={`Scrap ${idx}`} className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => removePhoto(idx)}
+                    className="absolute top-1 right-1 p-1 bg-white/90 text-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              {(formData.photos || []).length < 5 && (
+                <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors">
+                  <Upload className="w-5 h-5 text-gray-400 mb-1" />
+                  <span className="text-[10px] font-medium text-gray-500">Upload</span>
                   <input
-                    type="radio"
-                    name="requirementCheck"
-                    value="yes"
-                    checked={formData.requirementCheck === 'yes'}
-                    onChange={() => updateFormData({ requirementCheck: 'yes' })}
-                    className="w-4 h-4 text-[#0f3d8c] border-gray-300 focus:ring-[#0f3d8c] cursor-pointer"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handlePhotoUpload}
                   />
-                  <span className="text-sm font-semibold text-gray-700">Yes</span>
                 </label>
-                <label className={`flex-1 flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer bg-white transition-all select-none hover:bg-gray-50/50 ${
-                  formData.requirementCheck === 'no' ? 'border-[#0f3d8c] ring-1 ring-[#0f3d8c]/20' : 'border-gray-200'
-                }`}>
-                  <input
-                    type="radio"
-                    name="requirementCheck"
-                    value="no"
-                    checked={formData.requirementCheck === 'no'}
-                    onChange={() => updateFormData({ requirementCheck: 'no' })}
-                    className="w-4 h-4 text-[#0f3d8c] border-gray-300 focus:ring-[#0f3d8c] cursor-pointer"
-                  />
-                  <span className="text-sm font-semibold text-gray-700">No</span>
-                </label>
-              </div>
-              {errors.requirement && showValidation && (
-                <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {errors.requirement}
-                </p>
-              )}
-            </div>
-
-            {/* Category Verification */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-3">
-                Have all items been categorized and separated category-wise? <span className="text-red-500">*</span>
-              </label>
-              <div className="flex gap-4">
-                <label className={`flex-1 flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer bg-white transition-all select-none hover:bg-gray-50/50 ${
-                  formData.categoryVerification === 'yes' ? 'border-[#0f3d8c] ring-1 ring-[#0f3d8c]/20' : 'border-gray-200'
-                }`}>
-                  <input
-                    type="radio"
-                    name="categoryVerification"
-                    value="yes"
-                    checked={formData.categoryVerification === 'yes'}
-                    onChange={() => updateFormData({ categoryVerification: 'yes' })}
-                    className="w-4 h-4 text-[#0f3d8c] border-gray-300 focus:ring-[#0f3d8c] cursor-pointer"
-                  />
-                  <span className="text-sm font-semibold text-gray-700">Yes</span>
-                </label>
-                <label className={`flex-1 flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer bg-white transition-all select-none hover:bg-gray-50/50 ${
-                  formData.categoryVerification === 'no' ? 'border-[#0f3d8c] ring-1 ring-[#0f3d8c]/20' : 'border-gray-200'
-                }`}>
-                  <input
-                    type="radio"
-                    name="categoryVerification"
-                    value="no"
-                    checked={formData.categoryVerification === 'no'}
-                    onChange={() => updateFormData({ categoryVerification: 'no' })}
-                    className="w-4 h-4 text-[#0f3d8c] border-gray-300 focus:ring-[#0f3d8c] cursor-pointer"
-                  />
-                  <span className="text-sm font-semibold text-gray-700">No</span>
-                </label>
-              </div>
-              {errors.category && showValidation && (
-                <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {errors.category}
-                </p>
               )}
             </div>
           </div>
+
+
 
           {/* Remarks */}
           <div>

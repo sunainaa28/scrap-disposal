@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 export default function Sidebar() {
-  const { currentView, setCurrentView, resetForm } = useStore();
+  const { user, currentView, setCurrentView, resetForm } = useStore();
 
   const handleNavigate = (view: 'dashboard' | 'list' | 'create') => {
     if (view === 'create') {
@@ -23,7 +23,7 @@ export default function Sidebar() {
 
   const materialItems = [
     { id: 'list', label: 'Scrap Disposal', icon: Trash2 },
-    { id: 'create', label: 'New Request', icon: PlusCircle },
+    ...(user?.role === 'initiator' ? [{ id: 'create', label: 'New Request', icon: PlusCircle }] : []),
     { id: 'reports', label: 'Reports', icon: FileText },
   ];
 

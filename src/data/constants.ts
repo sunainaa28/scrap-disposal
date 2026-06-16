@@ -1,17 +1,66 @@
 import type { ScrapRequest } from '@/types';
 
 export const DEPARTMENTS = [
-  'OCC',
-  'Rolling Stock',
-  'Track',
-  'Signalling',
-  'Telecom',
-  'Power Supply',
+  'RST',
+  'PSS',
+  'OHE',
   'MEP',
-  'AFC',
-  'Civil',
-  'Warehouse',
+  'COM',
+  'SIG',
+  'TRW',
+  'DEE',
+  'MRKT',
+  'GEN',
 ] as const;
+
+export const CATEGORIES = [
+  {
+    group: 'Standard Waste',
+    options: ['MS', 'SS', 'Copper', 'Aluminium'],
+  },
+  {
+    group: 'E-Waste',
+    options: ['E-Waste'],
+  },
+  {
+    group: 'Hazardous Waste',
+    options: ['Used Oil', 'Batteries', 'Grease'],
+  },
+];
+
+export const SYSTEMS = [
+  'RST',
+  'PSS',
+  'OHE',
+  'MEP',
+  'COM',
+  'SIG',
+  'TRW',
+  'DEE',
+  'MRKT',
+  'GEN',
+] as const;
+
+export const LOCATIONS = ['Station', 'Depot'] as const;
+
+export const MOVEMENT_LOCATIONS = [
+  'Nagole Station',
+  'Main Warehouse',
+  'Uppal Depot',
+  'Miyapur Depot',
+  'Ameerpet Station',
+  'Raidurg Depot',
+] as const;
+
+export const APPROVAL_LEVELS = [
+  { level: 1, title: 'User / Maintainer / Team Leader' },
+  { level: 2, title: 'Department Manager (KHMRTS)' },
+  { level: 3, title: 'Department Manager (LTMRHL)' },
+  { level: 4, title: 'CMM' },
+  { level: 5, title: 'Warehouse Team Leader' },
+  { level: 6, title: 'Warehouse Manager / In-charge (KHMRTS)' },
+  { level: 7, title: 'Warehouse Manager / In-charge (LTMRHL)' },
+];
 
 export const UOM_OPTIONS = [
   'Nos',
@@ -90,7 +139,8 @@ export const SAMPLE_REQUESTS: ScrapRequest[] = [
         uom: 'Nos',
         quantity: 12,
         typeOfWaste: 'Damaged',
-        scrapLocation: 'Raidurg Depot - Warehouse A',
+        fromLocation: 'Raidurg Depot',
+        toLocation: 'Main Warehouse',
       },
       {
         id: 'item-002',
@@ -100,7 +150,8 @@ export const SAMPLE_REQUESTS: ScrapRequest[] = [
         uom: 'Liter',
         quantity: 5,
         typeOfWaste: 'Expired',
-        scrapLocation: 'Raidurg Depot - Maintenance Bay',
+        fromLocation: 'Raidurg Depot',
+        toLocation: 'Main Warehouse',
       },
       {
         id: 'item-003',
@@ -110,10 +161,15 @@ export const SAMPLE_REQUESTS: ScrapRequest[] = [
         uom: 'Set',
         quantity: 8,
         typeOfWaste: 'Obsolete',
-        scrapLocation: 'Miyapur Depot - Yard Storage',
+        fromLocation: 'Miyapur Depot',
+        toLocation: 'Main Warehouse',
       },
     ],
-    reasonForDisposal: 'Belt got damaged during operation and replaced.',
+    photos: [],
+    category: 'MS',
+    system: 'MEP',
+    location: 'Depot',
+    descriptionReason: 'Belt got damaged during operation and replaced.',
     requirementCheck: 'no',
     categoryVerification: 'no',
     remarks: '',
@@ -138,10 +194,15 @@ export const SAMPLE_REQUESTS: ScrapRequest[] = [
         uom: 'Unit',
         quantity: 3,
         typeOfWaste: 'Broken',
-        scrapLocation: 'Nagole Depot - Store Room',
+        fromLocation: 'Nagole Station',
+        toLocation: 'Main Warehouse',
       },
     ],
-    reasonForDisposal: 'Equipment broken beyond repair due to wear and tear.',
+    photos: [],
+    category: 'Copper',
+    system: 'OHE',
+    location: 'Depot',
+    descriptionReason: 'Equipment broken beyond repair due to wear and tear.',
     requirementCheck: 'yes',
     categoryVerification: 'yes',
     remarks: 'Please expedite the disposal process.',
@@ -179,7 +240,8 @@ export const SAMPLE_REQUESTS: ScrapRequest[] = [
         uom: 'Nos',
         quantity: 20,
         typeOfWaste: 'Replaced',
-        scrapLocation: 'Ameerpet Station - Signal Room',
+        fromLocation: 'Ameerpet Station',
+        toLocation: 'Main Warehouse',
       },
       {
         id: 'item-006',
@@ -189,10 +251,15 @@ export const SAMPLE_REQUESTS: ScrapRequest[] = [
         uom: 'Box',
         quantity: 2,
         typeOfWaste: 'Expired',
-        scrapLocation: 'Ameerpet Station - Signal Room',
+        fromLocation: 'Ameerpet Station',
+        toLocation: 'Main Warehouse',
       },
     ],
-    reasonForDisposal: 'Old relays replaced with new digital units during upgrade.',
+    photos: [],
+    category: 'E-Waste',
+    system: 'SIG',
+    location: 'Station',
+    descriptionReason: 'Old relays replaced with new digital units during upgrade.',
     requirementCheck: 'no',
     categoryVerification: 'yes',
     remarks: '',
