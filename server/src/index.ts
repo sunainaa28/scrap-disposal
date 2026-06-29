@@ -7,25 +7,38 @@ import { db } from './db.js';
 import type { ScrapRequest } from './db.js';
 import { authMiddleware } from './middleware/auth.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Load .env from the project root (two directories above server/src/)
+// Load .env from the server root directory and root project directory
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Apply authentication middleware to all api routes
 app.use('/api', authMiddleware);
 
-// Get all requests
-app.get('/api/requests', (req, res) => {
+// Search materials master autocomplete
+app.get('/api/materials/search', async (req, res) => {
   try {
-    const requests = db.getAll();
+    const q = req.query.q as string || '';
+    if (q.trim().length < 2) {
+      return res.json([]);
+    }
+    const results = await db.searchMaterials(q);
+    res.json(results);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all requests
+app.get('/api/requests', async (req, res) => {
+  try {
+    const requests = await db.getAll();
     res.json(requests);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -33,9 +46,9 @@ app.get('/api/requests', (req, res) => {
 });
 
 // Get single request by ID
-app.get('/api/requests/:id', (req, res) => {
+app.get('/api/requests/:id', async (req, res) => {
   try {
-    const request = db.getById(req.params.id);
+    const request = await db.getById(req.params.id);
     if (!request) {
       return res.status(404).json({ error: 'Request not found' });
     }
@@ -46,7 +59,7 @@ app.get('/api/requests/:id', (req, res) => {
 });
 
 // Create new request
-app.post('/api/requests', (req, res) => {
+app.post('/api/requests', async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
@@ -97,7 +110,7 @@ app.post('/api/requests', (req, res) => {
       updatedAt: new Date().toISOString(),
     };
 
-    const savedRequest = db.insert(newRequest);
+    const savedRequest = await db.insert(newRequest);
     res.status(201).json(savedRequest);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -105,14 +118,14 @@ app.post('/api/requests', (req, res) => {
 });
 
 // Update standard fields of a request (e.g. updating a draft)
-app.put('/api/requests/:id', (req, res) => {
+app.put('/api/requests/:id', async (req, res) => {
   try {
-    const existing = db.getById(req.params.id);
+    const existing = await db.getById(req.params.id);
     if (!existing) {
       return res.status(404).json({ error: 'Request not found' });
     }
 
-    const updated = db.update(req.params.id, req.body);
+    const updated = await db.update(req.params.id, req.body);
     res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -120,7 +133,7 @@ app.put('/api/requests/:id', (req, res) => {
 });
 
 // Review action (Depot Manager / Reviewer role)
-app.put('/api/requests/:id/review', (req, res) => {
+app.put('/api/requests/:id/review', async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
@@ -131,7 +144,7 @@ app.put('/api/requests/:id/review', (req, res) => {
       return res.status(403).json({ error: 'Only Reviewers or Approvers can review requests' });
     }
 
-    const existing = db.getById(req.params.id);
+    const existing = await db.getById(req.params.id);
     if (!existing) {
       return res.status(404).json({ error: 'Request not found' });
     }
@@ -143,7 +156,7 @@ app.put('/api/requests/:id/review', (req, res) => {
 
     const nextStatus = status === 'approved' ? 'reviewed' : 'rejected';
 
-    const updated = db.update(req.params.id, {
+    const updated = await db.update(req.params.id, {
       status: nextStatus,
       reviewedBy: {
         name: user.name,
@@ -159,7 +172,7 @@ app.put('/api/requests/:id/review', (req, res) => {
 });
 
 // Approve action (HOD / Approver role)
-app.put('/api/requests/:id/approve', (req, res) => {
+app.put('/api/requests/:id/approve', async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
@@ -170,7 +183,7 @@ app.put('/api/requests/:id/approve', (req, res) => {
       return res.status(403).json({ error: 'Only Approvers (HODs) can approve requests' });
     }
 
-    const existing = db.getById(req.params.id);
+    const existing = await db.getById(req.params.id);
     if (!existing) {
       return res.status(404).json({ error: 'Request not found' });
     }
@@ -182,7 +195,7 @@ app.put('/api/requests/:id/approve', (req, res) => {
 
     const nextStatus = status === 'approved' ? 'approved' : 'rejected';
 
-    const updated = db.update(req.params.id, {
+    const updated = await db.update(req.params.id, {
       status: nextStatus,
       approvedBy: {
         name: user.name,

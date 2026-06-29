@@ -61,6 +61,7 @@ const initialFormData: Partial<ScrapRequest> = {
   department: '',
   category: '',
   system: '',
+  subsystem: '',
   location: '',
   descriptionReason: '',
   photos: [],
@@ -85,7 +86,7 @@ const STORAGE_KEYS = {
   VIEW: 'scrap_disposal_current_view',
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Initial state helpers
 const getSavedUser = (): UserProfile | null => {
@@ -211,6 +212,7 @@ export const useStore = create<AppState>((set, get) => ({
       department: state.formData.department || '',
       category: state.formData.category || '',
       system: state.formData.system || '',
+      subsystem: state.formData.subsystem || '',
       location: state.formData.location || '',
       items: state.formItems,
       photos: state.formData.photos || [],
@@ -253,6 +255,7 @@ export const useStore = create<AppState>((set, get) => ({
       department: requestPayload.department!,
       category: requestPayload.category!,
       system: requestPayload.system!,
+      subsystem: requestPayload.subsystem || '',
       location: requestPayload.location!,
       items: requestPayload.items!,
       photos: requestPayload.photos || [],

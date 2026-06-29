@@ -181,7 +181,7 @@ export default function PreviewRequest() {
 
         {/* Meta Grid - Exact match to Photo 4 layout */}
         <div className="px-10 py-6 border-b border-gray-200 bg-gray-50/30">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
               <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
                 REQUEST NUMBER
@@ -206,6 +206,16 @@ export default function PreviewRequest() {
                 {currentRequest.department}
               </span>
             </div>
+            {currentRequest.subsystem && (
+              <div>
+                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                  SUBSYSTEM
+                </span>
+                <span className="text-sm font-bold text-gray-800">
+                  {currentRequest.subsystem}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

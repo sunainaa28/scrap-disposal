@@ -6,6 +6,7 @@ import {
   WASTE_TYPES,
   CATEGORIES,
   generateId,
+  SUBSYSTEMS_MAP,
 } from '@/data/constants';
 import type { ScrapItem } from '@/types';
 import {
@@ -32,6 +33,87 @@ export default function CreateRequest() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showValidation, setShowValidation] = useState(false);
+
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [activeSearch, setActiveSearch] = useState<{
+    itemId: string;
+    field: 'materialDescription' | 'materialNumber';
+    value: string;
+  } | null>(null);
+
+  // Dynamic Suggestion Search from PostgreSQL
+  useEffect(() => {
+    if (!activeSearch || !activeSearch.value || activeSearch.value.trim().length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const delayDebounce = setTimeout(() => {
+      const token = user?.token;
+      fetch(`/api/materials/search?q=${encodeURIComponent(activeSearch.value)}`, {
+        headers: {
+          'Authorization': `Bearer ${token || ''}`,
+        },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setSuggestions(data);
+          }
+        })
+        .catch((err) => console.error('Error searching materials:', err));
+    }, 150);
+    return () => clearTimeout(delayDebounce);
+  }, [activeSearch?.value, user?.token]);
+
+  const getSuggestions = (query: string, field: 'materialDescription' | 'materialNumber') => {
+    if (!query || query.trim().length < 2) return [];
+    return suggestions;
+  };
+
+  const handleInputChange = (id: string, field: 'materialDescription' | 'materialNumber', value: string) => {
+    updateItem(id, field, value);
+    setActiveSearch({ itemId: id, field, value });
+  };
+
+  const handleSelectMaterial = (id: string, mat: any) => {
+    const updated: ScrapItem[] = formItems.map((item: ScrapItem) =>
+      item.id === id
+        ? {
+            ...item,
+            materialDescription: mat.materialDescription || '',
+            materialNumber: mat.materialNumber || '',
+            uom: mat.uom || 'Nos',
+            category: mat.category || '',
+            isFromMaster: true,
+          }
+        : item
+    );
+    updateFormItems(updated);
+    setActiveSearch(null);
+  };
+
+  const handleClearMaterial = (id: string) => {
+    const updated: ScrapItem[] = formItems.map((item: ScrapItem) =>
+      item.id === id
+        ? {
+            ...item,
+            materialDescription: '',
+            materialNumber: '',
+            uom: 'Nos',
+            isFromMaster: false,
+          }
+        : item
+    );
+    updateFormItems(updated);
+    setActiveSearch(null);
+  };
+
+  const handleBlur = () => {
+    // Timeout to allow mouse down handler to run on suggestion lists
+    setTimeout(() => {
+      setActiveSearch(null);
+    }, 150);
+  };
 
   // Initialize initiator details from active user session if not already set
   useEffect(() => {
@@ -73,6 +155,7 @@ export default function CreateRequest() {
       typeOfWaste: 'Damaged',
       fromLocation: '',
       toLocation: '',
+      isFromMaster: false,
     };
     updateFormItems([...formItems, newItem]);
   };
@@ -119,8 +202,13 @@ export default function CreateRequest() {
     const newErrors: Record<string, string> = {};
 
     if (!formData.department) newErrors.department = 'Department is required';
-    if (!formData.category) newErrors.categoryField = 'Category is required';
     if (!formData.date) newErrors.date = 'Date is required';
+
+    if (formData.department && SUBSYSTEMS_MAP[formData.department] && SUBSYSTEMS_MAP[formData.department].length > 0) {
+      if (!formData.subsystem) {
+        newErrors.subsystem = 'Subsystem is required';
+      }
+    }
 
     if (formItems.length === 0) {
       newErrors.items = 'At least one scrap item is required';
@@ -232,7 +320,7 @@ export default function CreateRequest() {
           </h2>
         </div>
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {/* Request Number */}
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
@@ -274,7 +362,7 @@ export default function CreateRequest() {
               <div className="relative">
                 <select
                   value={formData.department || ''}
-                  onChange={(e) => updateFormData({ department: e.target.value })}
+                  onChange={(e) => updateFormData({ department: e.target.value, subsystem: '' })}
                   className={`w-full px-3 py-2.5 border rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] bg-white ${errors.department && showValidation
                       ? 'border-red-300 bg-red-50'
                       : 'border-gray-200'
@@ -293,6 +381,43 @@ export default function CreateRequest() {
                 <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   {errors.department}
+                </p>
+              )}
+            </div>
+
+            {/* Subsystem */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                Subsystem <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.subsystem || ''}
+                  onChange={(e) => updateFormData({ subsystem: e.target.value })}
+                  className={`w-full px-3 py-2.5 border rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] bg-white ${errors.subsystem && showValidation
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-gray-200'
+                    }`}
+                >
+                  <option value="">Select Subsystem</option>
+                  {formData.department && SUBSYSTEMS_MAP[formData.department] ? (
+                    SUBSYSTEMS_MAP[formData.department].map((sub) => (
+                      <option key={sub.code} value={sub.code}>
+                        {sub.code} - {sub.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>
+                      {formData.department ? 'No subsystems' : 'Select Dept First'}
+                    </option>
+                  )}
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+              {errors.subsystem && showValidation && (
+                <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.subsystem}
                 </p>
               )}
             </div>
@@ -327,7 +452,7 @@ export default function CreateRequest() {
           </div>
         )}
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto min-h-[320px]">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -385,32 +510,126 @@ export default function CreateRequest() {
                   >
                     <td className="px-4 py-3 text-slate-500 font-semibold">{item.srNo}</td>
                     <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        value={item.materialDescription}
-                        onChange={(e) =>
-                          updateItem(item.id, 'materialDescription', e.target.value)
-                        }
-                        placeholder="e.g. Traction Motor Belt"
-                        className={`w-full px-2.5 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${errors[`item-${index}-desc`] && showValidation
-                            ? 'border-red-300 bg-red-50'
-                            : 'border-gray-200 bg-white'
-                          }`}
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={item.materialDescription}
+                          onChange={(e) =>
+                            handleInputChange(item.id, 'materialDescription', e.target.value)
+                          }
+                          onFocus={() =>
+                            setActiveSearch({ itemId: item.id, field: 'materialDescription', value: item.materialDescription })
+                          }
+                          onBlur={handleBlur}
+                          disabled={item.isFromMaster}
+                          placeholder="e.g. Traction Motor Belt"
+                          className={`w-full px-2.5 py-2 pr-8 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${
+                            item.isFromMaster
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
+                              : 'bg-white text-gray-800 border-gray-200'
+                          } ${errors[`item-${index}-desc`] && showValidation
+                              ? 'border-red-300 bg-red-50'
+                              : ''
+                            }`}
+                        />
+                        {item.isFromMaster && (
+                          <button
+                            type="button"
+                            onClick={() => handleClearMaterial(item.id)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 bg-transparent border-0 cursor-pointer"
+                            title="Clear material"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                        {/* Suggestions List */}
+                        {activeSearch &&
+                          activeSearch.itemId === item.id &&
+                          activeSearch.field === 'materialDescription' &&
+                          !item.isFromMaster && (
+                            <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg scrollbar-thin">
+                              {getSuggestions(activeSearch.value, 'materialDescription').length === 0 ? (
+                                <div className="px-3 py-2.5 text-xs text-gray-400 italic">No matching materials</div>
+                              ) : (
+                                getSuggestions(activeSearch.value, 'materialDescription').map((mat, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      handleSelectMaterial(item.id, mat);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 active:bg-slate-100 transition-colors flex flex-col gap-0.5 border-b border-gray-100 last:border-0 cursor-pointer"
+                                  >
+                                    <span className="font-semibold text-slate-800">{mat.materialDescription}</span>
+                                    <span className="text-[10px] text-slate-400">Code: {mat.materialNumber} | UOM: {mat.uom}</span>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        value={item.materialNumber}
-                        onChange={(e) =>
-                          updateItem(item.id, 'materialNumber', e.target.value)
-                        }
-                        placeholder="MAT-XXXXXX"
-                        className={`w-full px-2.5 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${errors[`item-${index}-num`] && showValidation
-                            ? 'border-red-300 bg-red-50'
-                            : 'border-gray-200 bg-white'
-                          }`}
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={item.materialNumber}
+                          onChange={(e) =>
+                            handleInputChange(item.id, 'materialNumber', e.target.value)
+                          }
+                          onFocus={() =>
+                            setActiveSearch({ itemId: item.id, field: 'materialNumber', value: item.materialNumber })
+                          }
+                          onBlur={handleBlur}
+                          disabled={item.isFromMaster}
+                          placeholder="MAT-XXXXXX"
+                          className={`w-full px-2.5 py-2 pr-8 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${
+                            item.isFromMaster
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
+                              : 'bg-white text-gray-800 border-gray-200'
+                          } ${errors[`item-${index}-num`] && showValidation
+                              ? 'border-red-300 bg-red-50'
+                              : ''
+                            }`}
+                        />
+                        {item.isFromMaster && (
+                          <button
+                            type="button"
+                            onClick={() => handleClearMaterial(item.id)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 bg-transparent border-0 cursor-pointer"
+                            title="Clear material"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                        {/* Suggestions List */}
+                        {activeSearch &&
+                          activeSearch.itemId === item.id &&
+                          activeSearch.field === 'materialNumber' &&
+                          !item.isFromMaster && (
+                            <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg scrollbar-thin">
+                              {getSuggestions(activeSearch.value, 'materialNumber').length === 0 ? (
+                                <div className="px-3 py-2.5 text-xs text-gray-400 italic">No matching materials</div>
+                              ) : (
+                                getSuggestions(activeSearch.value, 'materialNumber').map((mat, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      handleSelectMaterial(item.id, mat);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 active:bg-slate-100 transition-colors flex flex-col gap-0.5 border-b border-gray-100 last:border-0 cursor-pointer"
+                                  >
+                                    <span className="font-semibold text-slate-800">{mat.materialDescription}</span>
+                                    <span className="text-[10px] text-slate-400">Code: {mat.materialNumber} | UOM: {mat.uom}</span>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="relative">
@@ -419,7 +638,12 @@ export default function CreateRequest() {
                           onChange={(e) =>
                             updateItem(item.id, 'uom', e.target.value)
                           }
-                          className="w-full px-2.5 py-2 border border-gray-200 rounded-md text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] bg-white"
+                          disabled={item.isFromMaster}
+                          className={`w-full px-2.5 py-2 border border-gray-200 rounded-md text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#0f3d8c]/20 focus:border-[#0f3d8c] ${
+                            item.isFromMaster
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                              : 'bg-white text-gray-800'
+                          }`}
                         >
                           {UOM_OPTIONS.map((uom: string) => (
                             <option key={uom} value={uom}>
@@ -536,7 +760,7 @@ export default function CreateRequest() {
             {/* Category */}
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                Category <span className="text-red-500">*</span>
+                Category
               </label>
               <div className="relative">
                 <select

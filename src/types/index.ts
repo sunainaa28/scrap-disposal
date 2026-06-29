@@ -9,6 +9,8 @@ export interface ScrapItem {
   fromLocation: string;
   toLocation: string;
   photo?: string;
+  isFromMaster?: boolean;
+  category?: string;
 }
 
 export interface ScrapRequest {
@@ -20,6 +22,7 @@ export interface ScrapRequest {
   photos?: string[];
   category: string;
   system: string;
+  subsystem?: string;
   location: string;
   descriptionReason: string;
   requirementCheck: 'yes' | 'no' | null;
